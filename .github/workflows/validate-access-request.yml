@@ -8,7 +8,7 @@ permissions:
   issues: write
 
 jobs:
-  validate:
+  validate-access:
     if: >-
       github.event.sender.login != 'github-actions[bot]' &&
       contains(github.event.issue.labels.*.name, 'access-request')
@@ -206,3 +206,323 @@ jobs:
                 body: `Access code is valid. Staff can now add the approve label when ready.`,
               });
             }
+
+  validate-assignment:
+    if: >-
+      github.event.sender.login != 'github-actions[bot]' &&
+      (
+        contains(github.event.issue.labels.*.name, 'assignment-request') ||
+        contains(github.event.issue.body, '### Organization')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard required secrets
+        uses: actions/github-script@v7
+        env:
+          AUTOMATION_TOKEN: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const missing = [];
+            if (!process.env.AUTOMATION_TOKEN) missing.push('COURSE_AUTOMATION_TOKEN');
+
+            if (missing.length === 0) {
+              return;
+            }
+
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('pending');
+            await removeIfPresent('validated');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['failed'],
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `Automation configuration error: missing secret(s) ${missing.join(', ')}.`,
+            });
+
+            core.setFailed(`Missing required secret(s): ${missing.join(', ')}`);
+
+      - name: Parse assignment request fields
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const lines = body.split(/\r?\n/);
+
+            const extractHeadingValue = (headingRegex) => {
+              for (let i = 0; i < lines.length; i++) {
+                if (!headingRegex.test(lines[i].trim())) continue;
+                for (let j = i + 1; j < lines.length; j++) {
+                  const candidate = lines[j].trim();
+                  if (candidate === '' || candidate.startsWith('<!--')) continue;
+                  if (/^#{1,6}\s/.test(candidate)) break;
+                  return candidate;
+                }
+              }
+              return '';
+            };
+
+            const organization = extractHeadingValue(/^#{1,6}\s*organization\b/i);
+            const repository = extractHeadingValue(/^#{1,6}\s*repository(?:\s+name)?\b/i);
+            const org = organization.trim();
+            const repoPrefix = repository.trim();
+            core.setOutput('organization', org);
+            core.setOutput('repo_prefix', repoPrefix);
+
+            if (org && repoPrefix) {
+              return;
+            }
+
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('pending');
+            await removeIfPresent('validated');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['failed'],
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: 'Assignment request failed: Organization and Repository name are required. Edit the issue fields and save to retry.',
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              state: 'closed',
+            });
+
+            core.setFailed('Missing required assignment fields.');
+
+      - name: Check student identity first
+        id: identity
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const requester = (issue.user.login || '').toLowerCase();
+
+            const contentResponse = await github.rest.repos.getContent({
+              owner: 'zuyd-courses',
+              repo: 'student-registry',
+              path: 'data/students.json',
+            });
+            const payload = Array.isArray(contentResponse.data) ? contentResponse.data[0] : contentResponse.data;
+            const content = Buffer.from(payload.content, payload.encoding).toString('utf8');
+            const registry = JSON.parse(content);
+            const students = Array.isArray(registry.students) ? registry.students : [];
+
+            const known = students.some((student) => {
+              const logins = [
+                ...(Array.isArray(student.github_logins) ? student.github_logins : []),
+                ...(student.github_login ? [student.github_login] : []),
+              ]
+                .map((value) => String(value || '').trim().toLowerCase())
+                .filter(Boolean);
+              return logins.includes(requester);
+            });
+
+            if (known) {
+              return;
+            }
+
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('pending');
+            await removeIfPresent('failed');
+            await removeIfPresent('validated');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['failed'],
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: 'Assignment request failed: your GitHub account is not in student-registry yet. Request initial access first, then edit this issue and save to retry.',
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              state: 'closed',
+            });
+
+            core.setFailed('Requester not found in student-registry.');
+
+      - name: Validate org/template and create repository
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const requester = issue.user.login;
+            const organization = '${{ steps.parse.outputs.organization }}'.trim();
+            const repoPrefix = '${{ steps.parse.outputs.repo_prefix }}'.trim();
+            const normalizedLogin = requester.toLowerCase();
+
+            const templateRepository = repoPrefix.endsWith('-')
+              ? `${repoPrefix}startercode`
+              : `${repoPrefix}-startercode`;
+            const targetRepository = repoPrefix.endsWith('-')
+              ? `${repoPrefix}${normalizedLogin}`
+              : `${repoPrefix}-${normalizedLogin}`;
+
+            const failBroad = async () => {
+              const removeIfPresent = async (name) => {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    name,
+                  });
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                }
+              };
+
+              await removeIfPresent('pending');
+              await removeIfPresent('validated');
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['failed'],
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: 'Assignment request failed: organization or repository prefix is not valid. Edit the issue fields and save to retry.',
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+              });
+            };
+
+            try {
+              await github.rest.repos.get({ owner: organization, repo: templateRepository });
+            } catch (error) {
+              if (error.status === 404) {
+                await failBroad();
+                core.setFailed('Template repository not found.');
+                return;
+              }
+              throw error;
+            }
+
+            try {
+              await github.rest.repos.get({ owner: organization, repo: targetRepository });
+              await failBroad();
+              core.setFailed('Target repository already exists.');
+              return;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            const created = await github.rest.repos.createUsingTemplate({
+              template_owner: organization,
+              template_repo: templateRepository,
+              owner: organization,
+              name: targetRepository,
+              private: true,
+              include_all_branches: false,
+            });
+
+            await github.rest.repos.addCollaborator({
+              owner: organization,
+              repo: targetRepository,
+              username: requester,
+              permission: 'maintain',
+            });
+
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('pending');
+            await removeIfPresent('failed');
+            await removeIfPresent('validated');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['processed'],
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `Assignment repository created and access granted.\n\n- org: ${organization}\n- template: ${templateRepository}\n- repository: ${targetRepository}\n- access: maintain\n\nRepository URL: ${created.data.html_url}`,
+            });
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              state: 'closed',
+            });

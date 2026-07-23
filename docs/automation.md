@@ -7,7 +7,8 @@ This folder contains the first automation scaffold for public access and assignm
 - `.github/ISSUE_TEMPLATE/access-request.yml`
 - `.github/ISSUE_TEMPLATE/assignment-request.yml`
 
-- Both templates auto-apply type labels and the `pending` state label.
+- Access template auto-applies type labels and the `pending` state label.
+- Assignment template applies no labels on submit to avoid extra `issues:labeled` runs.
 
 ## Workflows
 
@@ -15,14 +16,12 @@ This folder contains the first automation scaffold for public access and assignm
   - Ensures `pending` exists on newly opened request issues.
 
 - `.github/workflows/validate-access-request.yml`
-  - Trigger: access request issue opened, reopened, or edited.
+  - Trigger: request issue opened, reopened, or edited.
+  - Handles both form types in one workflow to avoid duplicate submit-triggered runs.
   - Loads access codes from the private `student-registry` repo.
   - Redacts the submitted access code immediately.
   - If invalid, comments, closes the issue, and marks it `failed`.
   - If valid, marks it `validated` and comments that staff can approve.
-
-- `.github/workflows/validate-assignment-request.yml`
-  - Trigger: assignment request issue opened, reopened, or edited.
   - Fully automated assignment path on submission (no `approve` step).
   - First check: issue author identity must exist in `student-registry/data/students.json`.
   - If user is not in registry, marks `failed`, comments guidance, and closes the issue.
@@ -35,7 +34,7 @@ This folder contains the first automation scaffold for public access and assignm
   - Single label-action workflow for `approve` and `reinvite`.
   - Access approve: requires `validated`, invites requester to `student-intake`, and comments next steps.
   - Access reinvite: re-sends invitation and comments instructions.
-  - Assignment requests are intentionally excluded from this workflow and are handled on submit by `validate-assignment-request.yml`.
+  - Assignment requests are intentionally excluded from this workflow and are handled on submit by `validate-access-request.yml`.
 
 ## Required labels
 
