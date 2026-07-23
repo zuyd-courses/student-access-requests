@@ -14,6 +14,53 @@ jobs:
       contains(github.event.issue.labels.*.name, 'access-request')
     runs-on: ubuntu-latest
     steps:
+      - name: Guard required secrets
+        uses: actions/github-script@v7
+        env:
+          READ_TOKEN: ${{ secrets.STUDENT_REGISTRY_READ_TOKEN }}
+          REVIEWER_HANDLE: ${{ secrets.ACCESS_REQUEST_REVIEWER_HANDLE }}
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const missing = [];
+            if (!process.env.READ_TOKEN) missing.push('STUDENT_REGISTRY_READ_TOKEN');
+            if (!process.env.REVIEWER_HANDLE) missing.push('ACCESS_REQUEST_REVIEWER_HANDLE');
+
+            if (missing.length === 0) {
+              return;
+            }
+
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('pending');
+            await removeIfPresent('validated');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['failed'],
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `Automation configuration error: missing secret(s) ${missing.join(', ')}. Staff must fix repository secrets before this request can be validated.`,
+            });
+
+            core.setFailed(`Missing required secret(s): ${missing.join(', ')}`);
+
       - name: Load access codes from student-registry
         id: load_access_codes
         uses: actions/github-script@v7

@@ -43,6 +43,46 @@ jobs:
               labels: ['processing'],
             });
 
+      - name: Guard invite secret
+        uses: actions/github-script@v7
+        env:
+          INVITE_TOKEN: ${{ secrets.STUDENT_INTAKE_INVITE_TOKEN }}
+        with:
+          script: |
+            if (process.env.INVITE_TOKEN) {
+              return;
+            }
+
+            const issue = context.payload.issue;
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('processing');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['failed'],
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: 'Automation configuration error: missing STUDENT_INTAKE_INVITE_TOKEN. Staff must fix repository secrets before invite processing can continue.',
+            });
+
+            core.setFailed('Missing required secret: STUDENT_INTAKE_INVITE_TOKEN');
+
       - name: Invite requester to student-intake
         id: invite
         uses: actions/github-script@v7
