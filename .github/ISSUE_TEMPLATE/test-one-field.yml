@@ -1,0 +1,14 @@
+name: Test one-field form
+description: Minimal issue form template to verify YAML form rendering.
+title: "Test form"
+labels:
+  - pending
+body:
+  - type: input
+    id: test_value
+    attributes:
+      label: Test value
+      description: Enter any value.
+      placeholder: Example value
+    validations:
+      required: true
