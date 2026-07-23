@@ -203,7 +203,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: `Access code is valid. Staff can now add the approve label when ready.`,
+                body: `Access code is valid. Staff can now comment /approve when ready.`,
               });
             }
 

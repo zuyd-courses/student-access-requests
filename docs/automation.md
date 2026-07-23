@@ -32,9 +32,9 @@ This folder contains the first automation scaffold for public access and assignm
   - Failed requests can be retried by editing the issue fields and saving.
 
 - `.github/workflows/process-request-label-actions.yml`
-  - Single label-action workflow for `approve` and `reinvite`.
-  - Access approve: requires `validated`, invites requester to `student-intake`, and comments next steps.
-  - Access reinvite: re-sends invitation and comments instructions.
+  - Single review-command workflow for access requests.
+  - Access approve: staff comments `/approve` on a `validated` access request, then automation invites requester to `student-intake` and comments next steps.
+  - Access reinvite: staff comments `/reinvite` on a processed access request, then automation re-sends invitation and comments instructions.
   - Assignment requests are intentionally excluded from this workflow and are handled on submit by `validate-access-request.yml`.
 
 ## Required labels

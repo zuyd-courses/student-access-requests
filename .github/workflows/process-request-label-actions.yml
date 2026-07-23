@@ -1,8 +1,8 @@
-name: Process Request Label Actions
+name: Process Request Review Commands
 
 on:
-  issues:
-    types: [labeled]
+  issue_comment:
+    types: [created]
 
 permissions:
   issues: write
@@ -10,33 +10,33 @@ permissions:
 jobs:
   process:
     if: >-
-      (github.event.label.name == 'approve' || github.event.label.name == 'reinvite') &&
-      contains(github.event.issue.labels.*.name, 'access-request')
+      github.event.sender.login != 'github-actions[bot]' &&
+      github.event.issue.pull_request == null
     runs-on: ubuntu-latest
     steps:
-      - name: Route label action
+      - name: Route review command
         id: route
         uses: actions/github-script@v7
         with:
           script: |
             const issue = context.payload.issue;
-            const label = context.payload.label?.name || '';
+            const command = (context.payload.comment?.body || '').trim().toLowerCase();
             const labels = issue.labels.map((l) => l.name);
 
             const has = (name) => labels.includes(name);
 
             let route = 'ignore';
-            if (label === 'approve' && has('access-request') && has('validated') && !has('processed')) {
+            if (command === '/approve' && has('access-request') && has('validated') && !has('processed')) {
               route = 'access-approve';
-            } else if (label === 'reinvite' && has('access-request') && has('processed')) {
+            } else if (command === '/reinvite' && has('access-request') && has('processed')) {
               route = 'access-reinvite';
             }
 
             core.setOutput('route', route);
 
-      - name: Stop when route does not match
+      - name: Stop when command does not match
         if: steps.route.outputs.route == 'ignore'
-        run: echo "No matching action for label '${{ github.event.label.name }}'."
+        run: echo "No matching command. Use /approve or /reinvite on access request issues."
 
       - name: Guard invite secret for access routes
         if: steps.route.outputs.route == 'access-approve' || steps.route.outputs.route == 'access-reinvite'
@@ -111,7 +111,6 @@ jobs:
               }
             };
 
-            await removeIfPresent('approve');
             await removeIfPresent('validated');
 
       - name: Access reinvite
@@ -154,14 +153,5 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            try {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.payload.issue.number,
-                name: 'reinvite',
-              });
-            } catch (error) {
-              if (error.status !== 404) throw error;
-            }
+            return;
 
