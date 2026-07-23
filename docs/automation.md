@@ -23,18 +23,18 @@ This folder contains the first automation scaffold for public access and assignm
 
 - `.github/workflows/validate-assignment-request.yml`
   - Trigger: assignment request issue opened or reopened.
-  - Validates required fields (`Organization`, `Repository name`).
-  - If invalid, marks `failed`, comments guidance, and closes the issue.
-  - If valid, marks `validated` and keeps the request ready for `approve`.
+  - Fully automated assignment path on submission (no `approve` step).
+  - First check: issue author identity must exist in `student-registry/data/students.json`.
+  - If user is not in registry, marks `failed`, comments guidance, and closes the issue.
+  - If user is valid, validates org/template-prefix and creates repository from template.
+  - Grants `maintain` access to the requesting student.
+  - On wrong org/repo-prefix/template, fails with a broad retry message.
 
 - `.github/workflows/process-request-label-actions.yml`
   - Single label-action workflow for `approve` and `reinvite`.
   - Access approve: requires `validated`, invites requester to `student-intake`, and comments next steps.
   - Access reinvite: re-sends invitation and comments instructions.
-  - Assignment approve: requires `assignment-request` + `validated`, then first check is issue-author identity in `student-registry/data/students.json`.
-  - If author is not registered, processing stops immediately.
-  - For assignment requests, template repository is derived automatically from requested repository name by appending `startercode`.
-  - This consolidation prevents multi-workflow label fan-out and keeps processing to one workflow run per label action.
+  - Assignment requests are intentionally excluded from this workflow and are handled on submit by `validate-assignment-request.yml`.
 
 ## Required labels
 
@@ -65,3 +65,4 @@ Replace dry-run placeholders with real operations:
 - The access-request validation workflow reads it with the `STUDENT_REGISTRY_READ_TOKEN` secret.
 - The reviewer notification uses the `ACCESS_REQUEST_REVIEWER_HANDLE` secret.
 - The label-action workflow uses `STUDENT_INTAKE_INVITE_TOKEN` for access invite/reinvite routes.
+- Assignment provisioning uses `STUDENT_ASSIGNMENT_PROVISION_TOKEN` (must allow create repo from template and collaborator access in target org).
