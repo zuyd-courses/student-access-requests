@@ -19,7 +19,7 @@ This folder contains the first automation scaffold for public access and assignm
   - Loads access codes from the private `student-registry` repo.
   - Redacts the submitted access code immediately.
   - If invalid, comments, closes the issue, and marks it `failed`.
-  - If valid, marks it `validated` and notifies the reviewer handle.
+  - If valid, marks it `validated` and comments that staff can approve.
 
 - `.github/workflows/validate-assignment-request.yml`
   - Trigger: assignment request issue opened or reopened.
@@ -53,16 +53,12 @@ Create these labels once in the destination repository:
 
 ## Next implementation step
 
-Replace dry-run placeholders with real operations:
+Current implementation status:
 
-- access flow: validate identity and access code, then invite to `student-intake`.
-- assignment flow: validate registry membership, allowed org, template existence, and provision repo access.
-- assignment flow is now identity-first; provisioning hook is still the next step.
+- access flow: validates access code, then invite/reinvite happens on labels.
+- assignment flow: submit-driven, identity-first, template-based repo provisioning.
 
 ## Access code source
 
 - The access code is stored in the private `student-registry` repo at `config/access-codes.json`.
-- The access-request validation workflow reads it with the `STUDENT_REGISTRY_READ_TOKEN` secret.
-- The reviewer notification uses the `ACCESS_REQUEST_REVIEWER_HANDLE` secret.
-- The label-action workflow uses `STUDENT_INTAKE_INVITE_TOKEN` for access invite/reinvite routes.
-- Assignment provisioning uses `STUDENT_ASSIGNMENT_PROVISION_TOKEN` (must allow create repo from template and collaborator access in target org).
+- All workflows in this repository use one secret: `COURSE_AUTOMATION_TOKEN`.

@@ -39,10 +39,10 @@ jobs:
         if: steps.route.outputs.route == 'access-approve' || steps.route.outputs.route == 'access-reinvite'
         uses: actions/github-script@v7
         env:
-          INVITE_TOKEN: ${{ secrets.STUDENT_INTAKE_INVITE_TOKEN }}
+          AUTOMATION_TOKEN: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
         with:
           script: |
-            if (process.env.INVITE_TOKEN) {
+            if (process.env.AUTOMATION_TOKEN) {
               return;
             }
 
@@ -50,17 +50,17 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.issue.number,
-              body: 'Automation configuration error: missing STUDENT_INTAKE_INVITE_TOKEN.',
+              body: 'Automation configuration error: missing COURSE_AUTOMATION_TOKEN.',
             });
 
-            core.setFailed('Missing required secret: STUDENT_INTAKE_INVITE_TOKEN');
+            core.setFailed('Missing required secret: COURSE_AUTOMATION_TOKEN');
 
       - name: Access approve invite
         if: steps.route.outputs.route == 'access-approve'
         id: access_invite
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.STUDENT_INTAKE_INVITE_TOKEN }}
+          github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
           script: |
             const username = context.payload.issue.user.login;
             const response = await github.rest.repos.addCollaborator({
@@ -116,7 +116,7 @@ jobs:
         id: access_reinvite
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.STUDENT_INTAKE_INVITE_TOKEN }}
+          github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
           script: |
             const username = context.payload.issue.user.login;
             const response = await github.rest.repos.addCollaborator({
