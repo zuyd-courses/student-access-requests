@@ -22,13 +22,14 @@ This folder contains the first automation scaffold for public access and assignm
   - If valid, marks it `validated` and comments that staff can approve.
 
 - `.github/workflows/validate-assignment-request.yml`
-  - Trigger: assignment request issue opened or reopened.
+  - Trigger: assignment request issue opened, reopened, or edited.
   - Fully automated assignment path on submission (no `approve` step).
   - First check: issue author identity must exist in `student-registry/data/students.json`.
   - If user is not in registry, marks `failed`, comments guidance, and closes the issue.
   - If user is valid, validates org/template-prefix and creates repository from template.
   - Grants `maintain` access to the requesting student.
   - On wrong org/repo-prefix/template, fails with a broad retry message.
+  - Failed requests can be retried by editing the issue fields and saving.
 
 - `.github/workflows/process-request-label-actions.yml`
   - Single label-action workflow for `approve` and `reinvite`.

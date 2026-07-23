@@ -2,7 +2,7 @@ name: Validate Assignment Request
 
 on:
   issues:
-    types: [opened, reopened]
+    types: [opened, reopened, edited]
 
 permissions:
   issues: write
@@ -116,7 +116,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: 'Assignment request failed: Organization and Repository name are required. Please fix the form and submit again.',
+              body: 'Assignment request failed: Organization and Repository name are required. Edit the issue fields and save to retry.',
             });
             await github.rest.issues.update({
               owner: context.repo.owner,
@@ -187,7 +187,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: 'Assignment request failed: your GitHub account is not in student-registry yet. Please request initial access first.',
+              body: 'Assignment request failed: your GitHub account is not in student-registry yet. Request initial access first, then edit this issue and save to retry.',
             });
             await github.rest.issues.update({
               owner: context.repo.owner,
@@ -242,7 +242,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: 'Assignment request failed: organization or repository prefix is not valid. Please check the values and submit again.',
+                body: 'Assignment request failed: organization or repository prefix is not valid. Edit the issue fields and save to retry.',
               });
               await github.rest.issues.update({
                 owner: context.repo.owner,
