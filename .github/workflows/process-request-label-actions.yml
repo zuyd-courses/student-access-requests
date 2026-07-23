@@ -25,7 +25,7 @@ jobs:
             let route = 'ignore';
             if (label === 'approve' && has('access-request') && has('validated') && !has('processed')) {
               route = 'access-approve';
-            } else if (label === 'approve' && !has('access-request') && !has('processed')) {
+            } else if (label === 'approve' && has('assignment-request') && has('validated') && !has('processed')) {
               route = 'assignment-approve';
             } else if (label === 'reinvite' && has('access-request') && has('processed')) {
               route = 'access-reinvite';

@@ -1,0 +1,124 @@
+name: Validate Assignment Request
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  issues: write
+
+jobs:
+  validate:
+    if: >-
+      github.event.sender.login != 'github-actions[bot]' &&
+      contains(github.event.issue.labels.*.name, 'assignment-request')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required fields
+        id: validate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const lines = body.split(/\r?\n/);
+
+            const extractHeadingValue = (headingRegex) => {
+              for (let i = 0; i < lines.length; i++) {
+                if (!headingRegex.test(lines[i].trim())) continue;
+                for (let j = i + 1; j < lines.length; j++) {
+                  const candidate = lines[j].trim();
+                  if (candidate === '' || candidate.startsWith('<!--')) continue;
+                  if (/^#{1,6}\s/.test(candidate)) break;
+                  return candidate;
+                }
+              }
+              return '';
+            };
+
+            const organization = extractHeadingValue(/^#{1,6}\s*organization\b/i);
+            const repository = extractHeadingValue(/^#{1,6}\s*repository(?:\s+name)?\b/i);
+            const valid = Boolean(organization) && Boolean(repository);
+
+            core.setOutput('valid', valid ? 'true' : 'false');
+            core.setOutput('organization', organization.trim());
+            core.setOutput('repository', repository.trim());
+
+      - name: Handle invalid request
+        if: steps.validate.outputs.valid != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('pending');
+            await removeIfPresent('validated');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['failed'],
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: 'Validation failed: Organization and Repository name are required. Update the issue and reopen to try again.',
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              state: 'closed',
+            });
+
+      - name: Mark request as validated
+        if: steps.validate.outputs.valid == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('pending');
+            await removeIfPresent('failed');
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['validated'],
+              });
+            } catch (error) {
+              if (error.status !== 422) throw error;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: 'Assignment request validated. Staff can now add the approve label to continue processing.',
+            });
