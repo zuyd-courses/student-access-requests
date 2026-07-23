@@ -1,6 +1,9 @@
 name: Assignment request form
 description: Request assignment repository provisioning.
 title: "Assignment request"
+labels:
+  - assignment-request
+  - pending
 body:
   - type: markdown
     attributes:

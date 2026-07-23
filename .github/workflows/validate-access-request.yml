@@ -216,6 +216,36 @@ jobs:
       )
     runs-on: ubuntu-latest
     steps:
+      - name: Mark assignment as processing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('failed');
+            await removeIfPresent('processed');
+            await removeIfPresent('validated');
+            await removeIfPresent('pending');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['processing'],
+            });
+
       - name: Guard required secrets
         uses: actions/github-script@v7
         env:
@@ -244,6 +274,7 @@ jobs:
             };
 
             await removeIfPresent('pending');
+            await removeIfPresent('processing');
             await removeIfPresent('validated');
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
@@ -307,6 +338,7 @@ jobs:
             };
 
             await removeIfPresent('pending');
+            await removeIfPresent('processing');
             await removeIfPresent('validated');
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
@@ -376,6 +408,7 @@ jobs:
             };
 
             await removeIfPresent('pending');
+            await removeIfPresent('processing');
             await removeIfPresent('failed');
             await removeIfPresent('validated');
             await github.rest.issues.addLabels({
@@ -433,6 +466,7 @@ jobs:
               };
 
               await removeIfPresent('pending');
+              await removeIfPresent('processing');
               await removeIfPresent('validated');
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
@@ -474,21 +508,28 @@ jobs:
               if (error.status !== 404) throw error;
             }
 
-            const created = await github.rest.repos.createUsingTemplate({
-              template_owner: organization,
-              template_repo: templateRepository,
-              owner: organization,
-              name: targetRepository,
-              private: true,
-              include_all_branches: false,
-            });
+            let created;
+            try {
+              created = await github.rest.repos.createUsingTemplate({
+                template_owner: organization,
+                template_repo: templateRepository,
+                owner: organization,
+                name: targetRepository,
+                private: true,
+                include_all_branches: false,
+              });
 
-            await github.rest.repos.addCollaborator({
-              owner: organization,
-              repo: targetRepository,
-              username: requester,
-              permission: 'maintain',
-            });
+              await github.rest.repos.addCollaborator({
+                owner: organization,
+                repo: targetRepository,
+                username: requester,
+                permission: 'maintain',
+              });
+            } catch (error) {
+              await failBroad();
+              core.setFailed(`Assignment provisioning failed: ${error.message}`);
+              return;
+            }
 
             const removeIfPresent = async (name) => {
               try {
@@ -504,6 +545,7 @@ jobs:
             };
 
             await removeIfPresent('pending');
+            await removeIfPresent('processing');
             await removeIfPresent('failed');
             await removeIfPresent('validated');
             await github.rest.issues.addLabels({

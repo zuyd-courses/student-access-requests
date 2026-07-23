@@ -8,7 +8,7 @@ This folder contains the first automation scaffold for public access and assignm
 - `.github/ISSUE_TEMPLATE/assignment-request.yml`
 
 - Access template auto-applies type labels and the `pending` state label.
-- Assignment template applies no labels on submit to avoid extra `issues:labeled` runs.
+- Assignment template auto-applies `assignment-request` and `pending` immediately on submit.
 
 ## Workflows
 
@@ -23,6 +23,7 @@ This folder contains the first automation scaffold for public access and assignm
   - If invalid, comments, closes the issue, and marks it `failed`.
   - If valid, marks it `validated` and comments that staff can approve.
   - Fully automated assignment path on submission (no `approve` step).
+  - Assignment submit path moves state labels from `pending` to `processing` to either `failed` or `processed`.
   - First check: issue author identity must exist in `student-registry/data/students.json`.
   - If user is not in registry, marks `failed`, comments guidance, and closes the issue.
   - If user is valid, validates org/template-prefix and creates repository from template.
