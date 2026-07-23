@@ -443,13 +443,16 @@ jobs:
             const organization = '${{ steps.parse.outputs.organization }}'.trim();
             const repoPrefix = '${{ steps.parse.outputs.repo_prefix }}'.trim();
             const normalizedLogin = requester.toLowerCase();
+            const prefixBase = repoPrefix.replace(/-+$/g, '');
 
-            const templateRepository = repoPrefix.endsWith('-')
-              ? `${repoPrefix}startercode`
-              : `${repoPrefix}-startercode`;
-            const targetRepository = repoPrefix.endsWith('-')
-              ? `${repoPrefix}${normalizedLogin}`
-              : `${repoPrefix}-${normalizedLogin}`;
+            if (!prefixBase) {
+              await failBroad();
+              core.setFailed('Repository prefix is empty after normalization.');
+              return;
+            }
+
+            const templateRepository = `${prefixBase}-startercode`;
+            const targetRepository = `${prefixBase}-${normalizedLogin}`;
 
             const failBroad = async () => {
               const removeIfPresent = async (name) => {

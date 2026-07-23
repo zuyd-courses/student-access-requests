@@ -27,6 +27,7 @@ This folder contains the first automation scaffold for public access and assignm
   - First check: issue author identity must exist in `student-registry/data/students.json`.
   - If user is not in registry, marks `failed`, comments guidance, and closes the issue.
   - If user is valid, validates org/template-prefix and creates repository from template.
+  - Template derivation is trailing-hyphen-insensitive: `final` and `final-` both resolve to `final-startercode`.
   - Grants `maintain` access to the requesting student.
   - On wrong org/repo-prefix/template, fails with a broad retry message.
   - Failed requests can be retried by editing the issue fields and saving.
