@@ -7,23 +7,13 @@ labels:
 body:
   - type: markdown
     attributes:
-      value: |
-        Submit this form to request access. A staff member will review your request.
+      value: Submit this form to request access.
 
   - type: input
     id: access_code
     attributes:
       label: Access code
       description: Access code provided in course materials.
-      placeholder: Example: COURSE-ACCESS-1234
+      placeholder: COURSE-ACCESS-1234
     validations:
       required: true
-
-  - type: input
-    id: course_code
-    attributes:
-      label: Course code (optional)
-      description: Optional course identifier.
-      placeholder: Example: INF1A-2026
-    validations:
-      required: false
