@@ -1,0 +1,354 @@
+name: Process Request Label Actions
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Route label action
+        id: route
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const label = context.payload.label?.name || '';
+            const labels = issue.labels.map((l) => l.name);
+
+            const has = (name) => labels.includes(name);
+
+            let route = 'ignore';
+            if (label === 'approve' && has('access-request') && has('validated') && !has('processed')) {
+              route = 'access-approve';
+            } else if (label === 'approve' && has('assignment-request') && !has('processed')) {
+              route = 'assignment-approve';
+            } else if (label === 'reinvite' && has('access-request') && has('processed')) {
+              route = 'access-reinvite';
+            }
+
+            core.setOutput('route', route);
+
+      - name: Stop when route does not match
+        if: steps.route.outputs.route == 'ignore'
+        run: echo "No matching action for label '${{ github.event.label.name }}'."
+
+      - name: Guard invite secret for access routes
+        if: steps.route.outputs.route == 'access-approve' || steps.route.outputs.route == 'access-reinvite'
+        uses: actions/github-script@v7
+        env:
+          INVITE_TOKEN: ${{ secrets.STUDENT_INTAKE_INVITE_TOKEN }}
+        with:
+          script: |
+            if (process.env.INVITE_TOKEN) {
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: 'Automation configuration error: missing STUDENT_INTAKE_INVITE_TOKEN.',
+            });
+
+            core.setFailed('Missing required secret: STUDENT_INTAKE_INVITE_TOKEN');
+
+      - name: Access approve invite
+        if: steps.route.outputs.route == 'access-approve'
+        id: access_invite
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.STUDENT_INTAKE_INVITE_TOKEN }}
+          script: |
+            const username = context.payload.issue.user.login;
+            const response = await github.rest.repos.addCollaborator({
+              owner: 'zuyd-courses',
+              repo: 'student-intake',
+              username,
+              permission: 'pull',
+            });
+            core.setOutput('status', String(response.status));
+
+      - name: Access approve comment
+        if: steps.route.outputs.route == 'access-approve'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.access_invite.outputs.status }}';
+            const inviteNote = status === '201'
+              ? 'You have been invited to the private intake repository.'
+              : 'You already have access to the private intake repository.';
+            const intakeLink = 'https://github.com/zuyd-courses/student-intake/issues/new?template=profile-intake.yml';
+            const intakeHome = 'https://github.com/zuyd-courses/student-intake';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: `Access request approved. ${inviteNote}\n\nNext step:\n1. Accept the invitation from your email or GitHub notifications.\n2. After accepting, return to this comment and open the intake form link below.\n3. Submit your profile details (first name, last name, classroom, zuyd email).\n\nIntake form: ${intakeLink}\nIntake repo homepage (backup): ${intakeHome}`,
+            });
+
+      - name: Access approve cleanup labels
+        if: steps.route.outputs.route == 'access-approve'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('approve');
+            await removeIfPresent('validated');
+
+      - name: Access reinvite
+        if: steps.route.outputs.route == 'access-reinvite'
+        id: access_reinvite
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.STUDENT_INTAKE_INVITE_TOKEN }}
+          script: |
+            const username = context.payload.issue.user.login;
+            const response = await github.rest.repos.addCollaborator({
+              owner: 'zuyd-courses',
+              repo: 'student-intake',
+              username,
+              permission: 'pull',
+            });
+            core.setOutput('status', String(response.status));
+
+      - name: Access reinvite comment
+        if: steps.route.outputs.route == 'access-reinvite'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.access_reinvite.outputs.status }}';
+            const inviteNote = status === '201'
+              ? 'A new invitation was sent to your GitHub account for the private intake repository.'
+              : 'You already have access to the private intake repository.';
+            const intakeLink = 'https://github.com/zuyd-courses/student-intake/issues/new?template=profile-intake.yml';
+            const intakeHome = 'https://github.com/zuyd-courses/student-intake';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: `${inviteNote}\n\nNext step:\n1. Accept the invitation from your GitHub notifications or email.\n2. After accepting, return to this comment and open the intake form link below.\n3. Submit your profile details in the form.\n\nIntake form: ${intakeLink}\nIntake repo homepage (backup): ${intakeHome}`,
+            });
+
+      - name: Access reinvite cleanup labels
+        if: steps.route.outputs.route == 'access-reinvite'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                name: 'reinvite',
+              });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+      - name: Guard registry read secret for assignment route
+        if: steps.route.outputs.route == 'assignment-approve'
+        uses: actions/github-script@v7
+        env:
+          READ_TOKEN: ${{ secrets.STUDENT_REGISTRY_READ_TOKEN }}
+        with:
+          script: |
+            if (process.env.READ_TOKEN) {
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: 'Automation configuration error: missing STUDENT_REGISTRY_READ_TOKEN.',
+            });
+
+            core.setFailed('Missing required secret: STUDENT_REGISTRY_READ_TOKEN');
+
+      - name: Parse assignment fields
+        if: steps.route.outputs.route == 'assignment-approve'
+        id: parse_assignment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const lines = body.split(/\r?\n/);
+
+            const extractHeadingValue = (headingRegex) => {
+              for (let i = 0; i < lines.length; i++) {
+                if (!headingRegex.test(lines[i].trim())) continue;
+                for (let j = i + 1; j < lines.length; j++) {
+                  const candidate = lines[j].trim();
+                  if (candidate === '' || candidate.startsWith('<!--')) continue;
+                  if (/^#{1,6}\s/.test(candidate)) break;
+                  return candidate;
+                }
+              }
+              return '';
+            };
+
+            const organization = extractHeadingValue(/^#{1,6}\s*organization\b/i);
+            const repository = extractHeadingValue(/^#{1,6}\s*repository(?:\s+name)?\b/i);
+            const normalizedRepository = String(repository || '').trim();
+            const templateRepository = normalizedRepository.endsWith('-')
+              ? `${normalizedRepository}startercode`
+              : `${normalizedRepository}-startercode`;
+
+            core.setOutput('organization', organization);
+            core.setOutput('repository', normalizedRepository);
+            core.setOutput('template_repository', templateRepository);
+
+            const missing = [];
+            if (!organization) missing.push('Organization');
+            if (!normalizedRepository) missing.push('Repository name');
+
+            if (missing.length === 0) {
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `Validation failed: missing required field(s): ${missing.join(', ')}.`,
+            });
+
+            core.setFailed(`Missing required fields: ${missing.join(', ')}`);
+
+      - name: Check assignment requester identity first
+        if: steps.route.outputs.route == 'assignment-approve'
+        id: assignment_identity
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.STUDENT_REGISTRY_READ_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const requester = (issue.user.login || '').toLowerCase();
+
+            const contentResponse = await github.rest.repos.getContent({
+              owner: 'zuyd-courses',
+              repo: 'student-registry',
+              path: 'data/students.json',
+            });
+
+            const payload = Array.isArray(contentResponse.data) ? contentResponse.data[0] : contentResponse.data;
+            const content = Buffer.from(payload.content, payload.encoding).toString('utf8');
+            const registry = JSON.parse(content);
+            const students = Array.isArray(registry.students) ? registry.students : [];
+
+            const known = students.some((student) => {
+              const logins = [
+                ...(Array.isArray(student.github_logins) ? student.github_logins : []),
+                ...(student.github_login ? [student.github_login] : []),
+              ]
+                .map((value) => String(value || '').trim().toLowerCase())
+                .filter(Boolean);
+              return logins.includes(requester);
+            });
+
+            if (known) {
+              core.setOutput('known_student', 'true');
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: 'Assignment request blocked: your GitHub account is not registered in student-registry yet. Submit the access request flow first, then try again.',
+            });
+
+            core.setFailed('Requester not found in student-registry.');
+
+      - name: Validate assignment target repositories
+        if: steps.route.outputs.route == 'assignment-approve'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.STUDENT_REGISTRY_READ_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const organization = '${{ steps.parse_assignment.outputs.organization }}'.trim();
+            const repository = '${{ steps.parse_assignment.outputs.repository }}'.trim();
+            const templateRepository = '${{ steps.parse_assignment.outputs.template_repository }}'.trim();
+
+            try {
+              await github.rest.repos.get({ owner: organization, repo: templateRepository });
+            } catch (error) {
+              if (error.status === 404) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `Validation failed: derived template repository ${organization}/${templateRepository} was not found or is not visible to automation.`,
+                });
+                core.setFailed('Template repository not found.');
+                return;
+              }
+              throw error;
+            }
+
+            let repoExists = false;
+            try {
+              await github.rest.repos.get({ owner: organization, repo: repository });
+              repoExists = true;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            if (repoExists) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Validation failed: target repository ${organization}/${repository} already exists.`,
+              });
+              core.setFailed('Target repository already exists.');
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `Assignment request validated for registered student.\n\nValidated target:\n- org: ${organization}\n- repo: ${repository}\n- derived template: ${templateRepository}\n\nNext step: connect provisioning (create from template + assign access).`,
+            });
+
+      - name: Assignment cleanup labels
+        if: steps.route.outputs.route == 'assignment-approve'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('approve');

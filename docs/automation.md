@@ -21,21 +21,14 @@ Both templates auto-apply type labels and the `pending` state label.
   - If invalid, comments, closes the issue, and marks it `failed`.
   - If valid, marks it `validated` and notifies the reviewer handle.
 
-- `.github/workflows/process-approved-access-request.yml`
-  - Trigger: `approve` label added to an `access-request` issue.
-  - Requires the request to already have the `validated` label.
-  - Invites the requester to `student-intake` and posts a direct intake form link.
-
-- `.github/workflows/reinvite-student-intake.yml`
-  - Trigger: `reinvite` label added to a processed `access-request` issue.
-  - Re-sends invitation to `student-intake` and posts intake instructions again.
-
-- `.github/workflows/process-approved-assignment-request.yml`
-  - Trigger: `approve` label added to an `assignment-request` issue.
-  - First check: issue author must exist in `student-registry/data/students.json`.
-  - If author is not registered, processing stops immediately and marks the issue `failed`.
-  - Only registered students proceed to organization/template/repository checks.
-  - Template repository is derived automatically from requested repository name by appending `startercode`.
+- `.github/workflows/process-request-label-actions.yml`
+  - Single label-action workflow for `approve` and `reinvite`.
+  - Access approve: requires `validated`, invites requester to `student-intake`, and comments next steps.
+  - Access reinvite: re-sends invitation and comments instructions.
+  - Assignment approve: first check is issue-author identity in `student-registry/data/students.json`.
+  - If author is not registered, processing stops immediately.
+  - For assignment requests, template repository is derived automatically from requested repository name by appending `startercode`.
+  - This consolidation prevents multi-workflow label fan-out and keeps processing to one workflow run per label action.
 
 ## Required labels
 
@@ -65,4 +58,4 @@ Replace dry-run placeholders with real operations:
 - The access code is stored in the private `student-registry` repo at `config/access-codes.json`.
 - The access-request validation workflow reads it with the `STUDENT_REGISTRY_READ_TOKEN` secret.
 - The reviewer notification uses the `ACCESS_REQUEST_REVIEWER_HANDLE` secret.
-- The approval workflow uses `STUDENT_INTAKE_INVITE_TOKEN` to invite approved users into `student-intake`.
+- The label-action workflow uses `STUDENT_INTAKE_INVITE_TOKEN` for access invite/reinvite routes.
