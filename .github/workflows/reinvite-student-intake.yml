@@ -1,0 +1,76 @@
+name: Reinvite Student To Intake
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+
+jobs:
+  reinvite:
+    if: >-
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'reinvite' &&
+      contains(github.event.issue.labels.*.name, 'access-request') &&
+      contains(github.event.issue.labels.*.name, 'processed')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-send intake invitation
+        id: invite
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.STUDENT_INTAKE_INVITE_TOKEN }}
+          script: |
+            const username = context.payload.issue.user.login;
+            const response = await github.rest.repos.addCollaborator({
+              owner: 'zuyd-courses',
+              repo: 'student-intake',
+              username,
+              permission: 'pull',
+            });
+
+            core.setOutput('status', String(response.status));
+
+      - name: Comment re-invite instructions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.invite.outputs.status }}';
+            const inviteNote = status === '201'
+              ? 'A new invitation was sent to your GitHub account for the private intake repository.'
+              : 'You already have access to the private intake repository.';
+            const intakeLink = 'https://github.com/zuyd-courses/student-intake/issues/new?template=profile-intake.yml';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: `${inviteNote}\n\nNext step: accept the invitation from your GitHub notifications or email, then submit your profile using this intake form:\n${intakeLink}`,
+            });
+
+      - name: Cleanup re-invite labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const removeIfPresent = async (name) => {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            };
+
+            await removeIfPresent('reinvite');
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['reinvited'],
+            });

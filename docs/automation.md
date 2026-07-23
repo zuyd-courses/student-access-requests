@@ -26,6 +26,10 @@ Both templates auto-apply type labels and the `pending` state label.
   - Requires the request to already have the `validated` label.
   - Invites the requester to `student-intake` and posts a direct intake form link.
 
+- `.github/workflows/reinvite-student-intake.yml`
+  - Trigger: `reinvite` label added to a processed `access-request` issue.
+  - Re-sends invitation to `student-intake` and posts intake instructions again.
+
 - `.github/workflows/process-approved-assignment-request.yml`
   - Trigger: manual workflow dispatch.
   - Use this only when testing assignment flow.
@@ -40,6 +44,8 @@ Create these labels once in the destination repository:
 - validated
 - failed
 - approve
+- reinvite
+- reinvited
 - assignment-request
 - processing
 - processed
