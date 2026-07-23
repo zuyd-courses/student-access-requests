@@ -41,12 +41,13 @@ jobs:
               ? 'A new invitation was sent to your GitHub account for the private intake repository.'
               : 'You already have access to the private intake repository.';
             const intakeLink = 'https://github.com/zuyd-courses/student-intake/issues/new?template=profile-intake.yml';
+            const intakeHome = 'https://github.com/zuyd-courses/student-intake';
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.issue.number,
-              body: `${inviteNote}\n\nNext step: accept the invitation from your GitHub notifications or email, then submit your profile using this intake form:\n${intakeLink}`,
+              body: `${inviteNote}\n\nNext step:\n1. Accept the invitation from your GitHub notifications or email.\n2. After accepting, return to this comment and open the intake form link below.\n3. Submit your profile details in the form.\n\nIntake form: ${intakeLink}\nIntake repo homepage (backup): ${intakeHome}`,
             });
 
       - name: Cleanup re-invite labels

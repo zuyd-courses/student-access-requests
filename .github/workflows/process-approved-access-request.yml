@@ -68,12 +68,13 @@ jobs:
               ? 'You have been invited to the private intake repository.'
               : 'You already have access to the private intake repository.';
             const intakeLink = 'https://github.com/zuyd-courses/student-intake/issues/new?template=profile-intake.yml';
+            const intakeHome = 'https://github.com/zuyd-courses/student-intake';
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.issue.number,
-              body: `Access request approved. ${inviteNote}\n\nNext step: open the private intake form and submit your profile details (first name, last name, classroom, zuyd email).\n${intakeLink}`,
+              body: `Access request approved. ${inviteNote}\n\nNext step:\n1. Accept the invitation from your email or GitHub notifications.\n2. After accepting, return to this comment and open the intake form link below.\n3. Submit your profile details (first name, last name, classroom, zuyd email).\n\nIntake form: ${intakeLink}\nIntake repo homepage (backup): ${intakeHome}`,
             });
 
       - name: Mark as processed
