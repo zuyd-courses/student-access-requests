@@ -31,9 +31,10 @@ Both templates auto-apply type labels and the `pending` state label.
   - Re-sends invitation to `student-intake` and posts intake instructions again.
 
 - `.github/workflows/process-approved-assignment-request.yml`
-  - Trigger: manual workflow dispatch.
-  - Use this only when testing assignment flow.
-  - Current mode: validation + dry-run comment.
+  - Trigger: `approve` label added to an `assignment-request` issue.
+  - First check: issue author must exist in `student-registry/data/students.json`.
+  - If author is not registered, processing stops immediately and marks the issue `failed`.
+  - Only registered students proceed to organization/template/repository checks.
 
 ## Required labels
 
@@ -56,6 +57,7 @@ Replace dry-run placeholders with real operations:
 
 - access flow: validate identity and access code, then invite to `student-intake`.
 - assignment flow: validate registry membership, allowed org, template existence, and provision repo access.
+- assignment flow is now identity-first; provisioning hook is still the next step.
 
 ## Access code source
 

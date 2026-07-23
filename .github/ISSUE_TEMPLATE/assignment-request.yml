@@ -10,11 +10,20 @@ body:
       value: Submit this form to request assignment repository provisioning.
 
   - type: input
+    id: organization
+    attributes:
+      label: Organization
+      description: Organization where the assignment repository should exist.
+      placeholder: mia-mmt1-2627
+    validations:
+      required: true
+
+  - type: input
     id: repository
     attributes:
-      label: Repository
-      description: Requested repository in org/prefix format.
-      placeholder: zuyd courses web101 team 07
+      label: Repository name
+      description: Requested repository name or prefix.
+      placeholder: final-
     validations:
       required: true
 
@@ -28,10 +37,10 @@ body:
       required: false
 
   - type: input
-    id: template_key
+    id: template_repository
     attributes:
-      label: Template key
-      description: Assignment template identifier used for provisioning.
-      placeholder: web101 assignment 1
+      label: Template repository
+      description: Existing template repository used for provisioning.
+      placeholder: final-startercode
     validations:
       required: true
