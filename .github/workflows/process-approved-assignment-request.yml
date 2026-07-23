@@ -1,17 +1,13 @@
 name: Process Approved Assignment Request
 
 on:
-  issues:
-    types: [labeled]
+  workflow_dispatch:
 
 permissions:
   issues: write
 
 jobs:
   process:
-    if: >-
-      github.event.label.name == 'approve' &&
-      contains(github.event.issue.labels.*.name, 'assignment-request')
     runs-on: ubuntu-latest
     steps:
       - name: Mark as processing
