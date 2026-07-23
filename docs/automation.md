@@ -24,7 +24,7 @@ Both templates auto-apply type labels and the `pending` state label.
 - `.github/workflows/process-approved-access-request.yml`
   - Trigger: `approve` label added to an `access-request` issue.
   - Requires the request to already have the `validated` label.
-  - Current mode: approval acknowledgement comment.
+  - Invites the requester to `student-intake` and posts a direct intake form link.
 
 - `.github/workflows/process-approved-assignment-request.yml`
   - Trigger: manual workflow dispatch.
@@ -56,3 +56,4 @@ Replace dry-run placeholders with real operations:
 - The access code is stored in the private `student-registry` repo at `config/access-codes.json`.
 - The access-request validation workflow reads it with the `STUDENT_REGISTRY_READ_TOKEN` secret.
 - The reviewer notification uses the `ACCESS_REQUEST_REVIEWER_HANDLE` secret.
+- The approval workflow uses `STUDENT_INTAKE_INVITE_TOKEN` to invite approved users into `student-intake`.
