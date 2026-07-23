@@ -7,7 +7,8 @@ This folder contains the first automation scaffold for public access and assignm
 - `.github/ISSUE_TEMPLATE/access-request.yml`
 - `.github/ISSUE_TEMPLATE/assignment-request.yml`
 
-Both templates auto-apply type labels and the `pending` state label.
+- The access request template auto-applies type/state labels.
+- The assignment request template intentionally applies no labels to avoid extra `issues:labeled` workflow runs on issue creation.
 
 ## Workflows
 
@@ -25,7 +26,7 @@ Both templates auto-apply type labels and the `pending` state label.
   - Single label-action workflow for `approve` and `reinvite`.
   - Access approve: requires `validated`, invites requester to `student-intake`, and comments next steps.
   - Access reinvite: re-sends invitation and comments instructions.
-  - Assignment approve: first check is issue-author identity in `student-registry/data/students.json`.
+  - Assignment approve: route matches `approve` on non-access issues, then first check is issue-author identity in `student-registry/data/students.json`.
   - If author is not registered, processing stops immediately.
   - For assignment requests, template repository is derived automatically from requested repository name by appending `startercode`.
   - This consolidation prevents multi-workflow label fan-out and keeps processing to one workflow run per label action.
