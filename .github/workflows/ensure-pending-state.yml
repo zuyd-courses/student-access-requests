@@ -1,8 +1,7 @@
 name: Ensure Pending State
 
 on:
-  issues:
-    types: [opened, reopened]
+  workflow_dispatch:
 
 permissions:
   issues: write
