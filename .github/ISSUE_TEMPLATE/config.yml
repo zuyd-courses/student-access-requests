@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Course Support
+    url: https://github.com/zuyd-courses/student-access-requests/discussions
+    about: Ask non-request questions in Discussions.
