@@ -54,7 +54,7 @@ jobs:
               owner: 'zuyd-courses',
               repo: 'student-intake',
               username,
-              permission: 'pull',
+              permission: 'triage',
             });
 
             core.setOutput('status', String(response.status));
