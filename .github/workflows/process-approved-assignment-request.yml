@@ -106,20 +106,24 @@ jobs:
 
             const organization = extractHeadingValue(/^#{1,6}\s*organization\b/i);
             const repository = extractHeadingValue(/^#{1,6}\s*repository(?:\s+name)?\b/i);
-            const templateRepository = extractHeadingValue(/^#{1,6}\s*template\s+repository\b/i);
+            const normalizeRepository = (value) => String(value || '').trim();
+            const buildTemplateRepository = (repository) =>
+              repository.endsWith('-') ? `${repository}startercode` : `${repository}-startercode`;
+
+            const normalizedRepository = normalizeRepository(repository);
+            const templateRepository = buildTemplateRepository(normalizedRepository);
 
             core.setOutput('organization', organization);
-            core.setOutput('repository', repository);
+            core.setOutput('repository', normalizedRepository);
             core.setOutput('template_repository', templateRepository);
 
-            if (organization && repository && templateRepository) {
+            if (organization && normalizedRepository) {
               return;
             }
 
             const missing = [];
             if (!organization) missing.push('Organization');
-            if (!repository) missing.push('Repository name');
-            if (!templateRepository) missing.push('Template repository');
+            if (!normalizedRepository) missing.push('Repository name');
 
             const removeIfPresent = async (name) => {
               try {
@@ -261,7 +265,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: issue.number,
-                  body: `Validation failed: template repository ${organization}/${templateRepository} was not found or is not visible to automation.`,
+                  body: `Validation failed: derived template repository ${organization}/${templateRepository} was not found or is not visible to automation.`,
                 });
                 core.setFailed('Template repository not found.');
                 return;
@@ -330,7 +334,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.issue.number,
-              body: `Assignment request validated for registered student.\n\nValidated target:\n- org: ${organization}\n- repo: ${repository}\n- template: ${templateRepository}\n\nNext step: connect provisioning (create from template + assign access).`,
+              body: `Assignment request validated for registered student.\n\nValidated target:\n- org: ${organization}\n- repo: ${repository}\n- derived template: ${templateRepository}\n\nNext step: connect provisioning (create from template + assign access).`,
             });
 
       - name: Mark as processed

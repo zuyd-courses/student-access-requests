@@ -35,6 +35,7 @@ Both templates auto-apply type labels and the `pending` state label.
   - First check: issue author must exist in `student-registry/data/students.json`.
   - If author is not registered, processing stops immediately and marks the issue `failed`.
   - Only registered students proceed to organization/template/repository checks.
+  - Template repository is derived automatically from requested repository name by appending `startercode`.
 
 ## Required labels
 
