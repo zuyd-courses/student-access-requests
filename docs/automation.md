@@ -42,3 +42,8 @@ Replace dry-run placeholders with real operations:
 
 - access flow: validate identity and access code, then invite to `student-intake`.
 - assignment flow: validate registry membership, allowed org, template existence, and provision repo access.
+
+## Access code source
+
+- The access code is stored in the private `student-registry` repo at `config/access-codes.json`.
+- The access-request workflow reads it with the `STUDENT_REGISTRY_READ_TOKEN` secret.
