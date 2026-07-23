@@ -1,28 +1,28 @@
 name: Process Approved Access Request
 
 on:
-  issues:
-    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Access request issue number
+        required: true
+        type: string
 
 permissions:
   issues: write
 
 jobs:
   process:
-    if: >-
-      github.event.action == 'labeled' &&
-      github.event.label.name == 'approve' &&
-      contains(github.event.issue.labels.*.name, 'access-request') &&
-      contains(github.event.issue.labels.*.name, 'validated')
     runs-on: ubuntu-latest
     steps:
       - name: Confirm validation before approval
         uses: actions/github-script@v7
         with:
           script: |
+            const issueNumber = Number('${{ inputs.issue_number }}');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.payload.issue.number,
+              issue_number: issueNumber,
               body: 'Access request approved. Next step is to invite the student into the onboarding flow.',
             });

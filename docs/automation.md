@@ -22,13 +22,13 @@ Both templates auto-apply type labels and the `pending` state label.
   - If valid, marks it `validated` and notifies the reviewer handle.
 
 - `.github/workflows/process-approved-access-request.yml`
-  - Trigger: `approve` label on issues labeled `access-request` after validation.
-  - Requires the `validated` label before continuing.
+  - Trigger: manual workflow dispatch with `issue_number` input.
+  - Use this after a request has `validated`.
   - Current mode: approval acknowledgement comment.
 
 - `.github/workflows/process-approved-assignment-request.yml`
-  - Trigger: `approve` label on issues labeled `assignment-request`.
-  - Transitions: `pending|failed -> processing -> processed`.
+  - Trigger: manual workflow dispatch.
+  - Use this only when testing assignment flow.
   - Current mode: validation + dry-run comment.
 
 ## Required labels
