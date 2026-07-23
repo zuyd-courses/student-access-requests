@@ -14,15 +14,24 @@ body:
     attributes:
       label: Repository
       description: Requested repository in org/prefix format.
-      placeholder: zuyd-courses/web101-team-07
+      placeholder: zuyd courses web101 team 07
     validations:
       required: true
+
+  - type: input
+    id: course_code
+    attributes:
+      label: Course code optional
+      description: Optional course identifier.
+      placeholder: INF1A 2026
+    validations:
+      required: false
 
   - type: input
     id: template_key
     attributes:
       label: Template key
       description: Assignment template identifier used for provisioning.
-      placeholder: web101-assignment-1
+      placeholder: web101 assignment 1
     validations:
       required: true
