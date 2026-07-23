@@ -14,10 +14,17 @@ Both templates auto-apply type labels and the `pending` state label.
 - `.github/workflows/ensure-pending-state.yml`
   - Ensures `pending` exists on newly opened request issues.
 
+- `.github/workflows/validate-access-request.yml`
+  - Trigger: access request issue opened, reopened, or edited.
+  - Loads access codes from the private `student-registry` repo.
+  - Redacts the submitted access code immediately.
+  - If invalid, comments, closes the issue, and marks it `failed`.
+  - If valid, marks it `validated` and notifies the reviewer handle.
+
 - `.github/workflows/process-approved-access-request.yml`
-  - Trigger: `approve` label on issues labeled `access-request`.
-  - Transitions: `pending|failed -> processing -> processed`.
-  - Current mode: validation + dry-run comment.
+  - Trigger: `approve` label on issues labeled `access-request` after validation.
+  - Requires the `validated` label before continuing.
+  - Current mode: approval acknowledgement comment.
 
 - `.github/workflows/process-approved-assignment-request.yml`
   - Trigger: `approve` label on issues labeled `assignment-request`.
@@ -29,12 +36,13 @@ Both templates auto-apply type labels and the `pending` state label.
 Create these labels once in the destination repository:
 
 - access-request
-- assignment-request
-- approve
 - pending
+- validated
+- failed
+- approve
+- assignment-request
 - processing
 - processed
-- failed
 
 ## Next implementation step
 
@@ -46,4 +54,5 @@ Replace dry-run placeholders with real operations:
 ## Access code source
 
 - The access code is stored in the private `student-registry` repo at `config/access-codes.json`.
-- The access-request workflow reads it with the `STUDENT_REGISTRY_READ_TOKEN` secret.
+- The access-request validation workflow reads it with the `STUDENT_REGISTRY_READ_TOKEN` secret.
+- The reviewer notification uses the `ACCESS_REQUEST_REVIEWER_HANDLE` secret.
