@@ -1,6 +1,6 @@
 name: Assignment repository request
 description: Request assignment repository provisioning.
-title: "Assignment request: @${{ github.actor }}"
+title: "Assignment request"
 labels:
   - assignment-request
   - pending

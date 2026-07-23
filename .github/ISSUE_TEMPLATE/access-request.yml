@@ -1,6 +1,6 @@
 name: Access request
 description: Request first-time access to the course GitHub realm.
-title: "Access request: @${{ github.actor }}"
+title: "Access request"
 labels:
   - access-request
   - pending
