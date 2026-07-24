@@ -10,15 +10,6 @@ jobs:
   process:
     runs-on: ubuntu-latest
     steps:
-      - name: Guard invite secret
-        uses: actions/github-script@v9
-        env:
-          AUTOMATION_TOKEN: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
-        with:
-          script: |
-            if (process.env.AUTOMATION_TOKEN) return;
-            core.setFailed('Missing required secret: COURSE_AUTOMATION_TOKEN');
-
       - name: Process all open validated access requests
         uses: actions/github-script@v9
         with:
@@ -66,7 +57,7 @@ jobs:
                 owner,
                 repo,
                 issue_number: issueNumber,
-                labels: ['approve'],
+                labels: ['approved'],
               });
 
               let status;
@@ -106,7 +97,7 @@ jobs:
               });
 
               await removeIfPresent(issueNumber, 'validated');
-              await removeIfPresent(issueNumber, 'approve');
+              await removeIfPresent(issueNumber, 'approved');
               await github.rest.issues.addLabels({
                 owner,
                 repo,
