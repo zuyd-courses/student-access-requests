@@ -66,7 +66,7 @@ jobs:
                 owner,
                 repo,
                 issue_number: issueNumber,
-                labels: ['processing', 'approve'],
+                labels: ['approve'],
               });
 
               let status;
@@ -79,7 +79,6 @@ jobs:
                 });
                 status = String(response.status);
               } catch (error) {
-                await removeIfPresent(issueNumber, 'processing');
                 await github.rest.issues.addLabels({
                   owner,
                   repo,
@@ -103,10 +102,9 @@ jobs:
                 owner,
                 repo,
                 issue_number: issueNumber,
-                body: `Access request approved. ${inviteNote}\n\nNext step:\n1. Accept the invitation from your email or GitHub notifications.\n2. After accepting, open the intake form link below.\n3. Submit your profile details (first name, last name, classroom, zuyd email).\n\nIntake form: ${intakeLink}\nIntake repo homepage (backup): ${intakeHome}`,
+                body: `Access request approved. ${inviteNote}\n\nNext step:\n1. Accept the invitation from GitHub.\n2. Open the intake form link below.\n3. Submit your profile details (first name, last name, classroom, zuyd email).\n\nIntake form: ${intakeLink}`,
               });
 
-              await removeIfPresent(issueNumber, 'processing');
               await removeIfPresent(issueNumber, 'validated');
               await removeIfPresent(issueNumber, 'approve');
               await github.rest.issues.addLabels({
