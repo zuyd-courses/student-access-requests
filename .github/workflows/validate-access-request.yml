@@ -128,7 +128,7 @@ jobs:
               return;
             }
 
-            await removeLabels(['pending', 'failed']);
+            await removeLabels(['pending']);
             try {
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
