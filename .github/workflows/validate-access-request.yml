@@ -145,7 +145,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: 'Access code is valid. Staff can now run the manual "Process Validated Access Requests" workflow.',
+                body: 'Your submitted access code is valid. Your request is now waiting for instructor approval. You do not need to take any action right now.',
               });
             }
 
