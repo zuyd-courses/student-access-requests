@@ -16,12 +16,12 @@ This folder contains the first automation scaffold for public access and assignm
   - Ensures `pending` exists on newly opened request issues.
 
 - `.github/workflows/validate-access-request.yml`
-  - Trigger: request issue opened, reopened, or edited.
+  - Trigger: request issue opened.
   - Handles both form types in one workflow to avoid duplicate submit-triggered runs.
   - Loads access codes from the private `student-registry` repo.
   - Redacts the submitted access code immediately.
   - If invalid, comments, closes the issue, and marks it `failed`.
-  - If valid, marks it `validated` and comments that staff can approve.
+  - If valid, marks it `validated` and leaves the issue open for manual staff processing.
   - Fully automated assignment path on submission (no `approve` step).
   - Assignment submit path moves state labels from `pending` to `processing` to either `failed` or `processed`.
   - First check: issue author identity must exist in `student-registry/data/students.json`.
@@ -30,13 +30,13 @@ This folder contains the first automation scaffold for public access and assignm
   - Template derivation is trailing-hyphen-insensitive: `final` and `final-` both resolve to `final-startercode`.
   - Grants `maintain` access to the requesting student.
   - On wrong org/repo-prefix/template, fails with a broad retry message.
-  - Failed requests can be retried by editing the issue fields and saving.
+  - Failed requests are retried by submitting a new issue.
 
 - `.github/workflows/process-request-label-actions.yml`
-  - Single review-command workflow for access requests.
-  - Access approve: staff comments `/approve` on a `validated` access request, then automation invites requester to `student-intake` and comments next steps.
-  - Access reinvite: staff comments `/reinvite` on a processed access request, then automation re-sends invitation and comments instructions.
-  - Assignment requests are intentionally excluded from this workflow and are handled on submit by `validate-access-request.yml`.
+  - Manual `workflow_dispatch` workflow for access requests.
+  - Processes all open `access-request` issues with the `validated` label.
+  - Approves each by inviting requester to `student-intake`, posting next steps, and moving labels to `processed`.
+  - Assignment requests are excluded from this workflow and are handled on submit by `validate-access-request.yml`.
 
 ## Required labels
 
@@ -57,7 +57,7 @@ Create these labels once in the destination repository:
 
 Current implementation status:
 
-- access flow: validates access code, then invite/reinvite happens on labels.
+- access flow: validates access code on issue open, then staff runs a manual workflow to process validated requests.
 - assignment flow: submit-driven, identity-first, template-based repo provisioning.
 
 ## Access code source

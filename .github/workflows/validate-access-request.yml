@@ -2,7 +2,7 @@ name: Validate Access Request
 
 on:
   issues:
-    types: [opened, reopened, edited]
+    types: [opened]
 
 permissions:
   issues: write
@@ -158,7 +158,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: 'Access code is not valid. The issue is closed. Edit the Access code field and save the issue to retry validation.',
+                body: 'Access code is not valid. The issue is closed. Submit a new access request issue with the correct access code to retry.',
               });
 
               await github.rest.issues.update({
@@ -186,24 +186,12 @@ jobs:
               if (error.status !== 422) throw error;
             }
 
-            if (issue.state === 'closed') {
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                headers: {
-                  'X-GitHub-Api-Version': '2026-03-10',
-                },
-                state: 'open',
-              });
-            }
-
             if (!hasValidatedLabel) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: `Access code is valid. Staff can now comment /approve when ready.`,
+                body: 'Access code is valid. Staff can now run the manual "Process Validated Access Requests" workflow.',
               });
             }
 
@@ -350,7 +338,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: 'Assignment request failed: Organization and Repository name are required. Edit the issue fields and save to retry.',
+              body: 'Assignment request failed: Organization and Repository name are required. Submit a new assignment request issue to retry.',
             });
             await github.rest.issues.update({
               owner: context.repo.owner,
@@ -425,7 +413,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: 'Assignment request failed: your GitHub account is not in student-registry yet. Request initial access first, then edit this issue and save to retry.',
+              body: 'Assignment request failed: your GitHub account is not in student-registry yet. Request initial access first, then submit a new assignment request issue to retry.',
             });
             await github.rest.issues.update({
               owner: context.repo.owner,
@@ -487,7 +475,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issue.number,
-                body: 'Assignment request failed: organization or repository prefix is not valid. Edit the issue fields and save to retry.',
+                body: 'Assignment request failed: organization or repository prefix is not valid. Submit a new assignment request issue to retry.',
               });
               await github.rest.issues.update({
                 owner: context.repo.owner,

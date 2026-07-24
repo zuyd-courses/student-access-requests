@@ -1,157 +1,119 @@
-name: Process Request Review Commands
+name: Process Validated Access Requests
 
 on:
-  issue_comment:
-    types: [created]
+  workflow_dispatch:
 
 permissions:
   issues: write
 
 jobs:
   process:
-    if: >-
-      github.event.sender.login != 'github-actions[bot]' &&
-      github.event.issue.pull_request == null
     runs-on: ubuntu-latest
     steps:
-      - name: Route review command
-        id: route
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const issue = context.payload.issue;
-            const command = (context.payload.comment?.body || '').trim().toLowerCase();
-            const labels = issue.labels.map((l) => l.name);
-
-            const has = (name) => labels.includes(name);
-
-            let route = 'ignore';
-            if (command === '/approve' && has('access-request') && has('validated') && !has('processed')) {
-              route = 'access-approve';
-            } else if (command === '/reinvite' && has('access-request') && has('processed')) {
-              route = 'access-reinvite';
-            }
-
-            core.setOutput('route', route);
-
-      - name: Stop when command does not match
-        if: steps.route.outputs.route == 'ignore'
-        run: echo "No matching command. Use /approve or /reinvite on access request issues."
-
-      - name: Guard invite secret for access routes
-        if: steps.route.outputs.route == 'access-approve' || steps.route.outputs.route == 'access-reinvite'
+      - name: Guard invite secret
         uses: actions/github-script@v9
         env:
           AUTOMATION_TOKEN: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
         with:
           script: |
-            if (process.env.AUTOMATION_TOKEN) {
-              return;
-            }
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.issue.number,
-              body: 'Automation configuration error: missing COURSE_AUTOMATION_TOKEN.',
-            });
-
+            if (process.env.AUTOMATION_TOKEN) return;
             core.setFailed('Missing required secret: COURSE_AUTOMATION_TOKEN');
 
-      - name: Access approve invite
-        if: steps.route.outputs.route == 'access-approve'
-        id: access_invite
+      - name: Process all open validated access requests
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
           script: |
-            const username = context.payload.issue.user.login;
-            const response = await github.rest.repos.addCollaborator({
-              owner: 'zuyd-courses',
-              repo: 'student-intake',
-              username,
-              permission: 'pull',
-            });
-            core.setOutput('status', String(response.status));
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const intakeRepo = 'student-intake';
+            const intakeLink = `https://github.com/${owner}/${intakeRepo}/issues/new?template=profile-intake.yml`;
+            const intakeHome = `https://github.com/${owner}/${intakeRepo}`;
 
-      - name: Access approve comment
-        if: steps.route.outputs.route == 'access-approve'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const status = '${{ steps.access_invite.outputs.status }}';
-            const inviteNote = status === '201'
-              ? 'You have been invited to the private intake repository.'
-              : 'You already have access to the private intake repository.';
-            const intakeLink = 'https://github.com/zuyd-courses/student-intake/issues/new?template=profile-intake.yml';
-            const intakeHome = 'https://github.com/zuyd-courses/student-intake';
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.issue.number,
-              body: `Access request approved. ${inviteNote}\n\nNext step:\n1. Accept the invitation from your email or GitHub notifications.\n2. After accepting, return to this comment and open the intake form link below.\n3. Submit your profile details (first name, last name, classroom, zuyd email).\n\nIntake form: ${intakeLink}\nIntake repo homepage (backup): ${intakeHome}`,
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: 'access-request,validated',
+              per_page: 100,
             });
 
-      - name: Access approve cleanup labels
-        if: steps.route.outputs.route == 'access-approve'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const removeIfPresent = async (name) => {
+            const targets = issues.filter((issue) => {
+              const labels = issue.labels.map((l) => l.name);
+              return labels.includes('access-request') && labels.includes('validated') && !labels.includes('processed');
+            });
+
+            if (targets.length === 0) {
+              core.notice('No open validated access-request issues found.');
+              return;
+            }
+
+            const removeIfPresent = async (issueNumber, name) => {
               try {
-                await github.rest.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: context.payload.issue.number,
-                  name,
-                });
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: issueNumber, name });
               } catch (error) {
                 if (error.status !== 404) throw error;
               }
             };
 
-            await removeIfPresent('validated');
+            for (const issue of targets) {
+              const issueNumber = issue.number;
+              const username = issue.user.login;
 
-      - name: Access reinvite
-        if: steps.route.outputs.route == 'access-reinvite'
-        id: access_reinvite
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
-          script: |
-            const username = context.payload.issue.user.login;
-            const response = await github.rest.repos.addCollaborator({
-              owner: 'zuyd-courses',
-              repo: 'student-intake',
-              username,
-              permission: 'pull',
-            });
-            core.setOutput('status', String(response.status));
+              await removeIfPresent(issueNumber, 'pending');
+              await removeIfPresent(issueNumber, 'failed');
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                labels: ['processing', 'approve'],
+              });
 
-      - name: Access reinvite comment
-        if: steps.route.outputs.route == 'access-reinvite'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const status = '${{ steps.access_reinvite.outputs.status }}';
-            const inviteNote = status === '201'
-              ? 'A new invitation was sent to your GitHub account for the private intake repository.'
-              : 'You already have access to the private intake repository.';
-            const intakeLink = 'https://github.com/zuyd-courses/student-intake/issues/new?template=profile-intake.yml';
-            const intakeHome = 'https://github.com/zuyd-courses/student-intake';
+              let status;
+              try {
+                const response = await github.rest.repos.addCollaborator({
+                  owner,
+                  repo: intakeRepo,
+                  username,
+                  permission: 'pull',
+                });
+                status = String(response.status);
+              } catch (error) {
+                await removeIfPresent(issueNumber, 'processing');
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  labels: ['failed'],
+                });
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  body: `Access request processing failed for @${username}: ${error.message}`,
+                });
+                continue;
+              }
 
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.issue.number,
-              body: `${inviteNote}\n\nNext step:\n1. Accept the invitation from your GitHub notifications or email.\n2. After accepting, return to this comment and open the intake form link below.\n3. Submit your profile details in the form.\n\nIntake form: ${intakeLink}\nIntake repo homepage (backup): ${intakeHome}`,
-            });
+              const inviteNote = status === '201'
+                ? 'You have been invited to the private intake repository.'
+                : 'You already have access to the private intake repository.';
 
-      - name: Access reinvite cleanup labels
-        if: steps.route.outputs.route == 'access-reinvite'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            return;
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body: `Access request approved. ${inviteNote}\n\nNext step:\n1. Accept the invitation from your email or GitHub notifications.\n2. After accepting, open the intake form link below.\n3. Submit your profile details (first name, last name, classroom, zuyd email).\n\nIntake form: ${intakeLink}\nIntake repo homepage (backup): ${intakeHome}`,
+              });
+
+              await removeIfPresent(issueNumber, 'processing');
+              await removeIfPresent(issueNumber, 'validated');
+              await removeIfPresent(issueNumber, 'approve');
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                labels: ['processed'],
+              });
+            }
 
