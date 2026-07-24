@@ -39,6 +39,12 @@ jobs:
               return;
             }
 
+            core.notice(`Found ${targets.length} open validated access-request issue(s) to process.`);
+
+            let approvedCount = 0;
+            let failedCount = 0;
+            let closedCount = 0;
+
             for (const issue of targets) {
               const issueNumber = issue.number;
               const username = issue.user.login;
@@ -85,6 +91,7 @@ jobs:
                 });
                 status = String(response.status);
               } catch (error) {
+                failedCount += 1;
                 await addLabels(['failed']);
                 await github.rest.issues.createComment({
                   owner,
@@ -119,5 +126,12 @@ jobs:
                 },
                 state: 'closed',
               });
+
+              approvedCount += 1;
+              closedCount += 1;
             }
+
+            core.notice(
+              `Processing summary: total=${targets.length}, approved=${approvedCount}, failed=${failedCount}, closed=${closedCount}.`
+            );
 
