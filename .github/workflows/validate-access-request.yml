@@ -14,51 +14,6 @@ jobs:
       contains(github.event.issue.labels.*.name, 'access-request')
     runs-on: ubuntu-latest
     steps:
-      - name: Guard required secrets
-        uses: actions/github-script@v9
-        env:
-          AUTOMATION_TOKEN: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
-        with:
-          script: |
-            const issue = context.payload.issue;
-            const missing = [];
-            if (!process.env.AUTOMATION_TOKEN) missing.push('COURSE_AUTOMATION_TOKEN');
-
-            if (missing.length === 0) {
-              return;
-            }
-
-            const removeIfPresent = async (name) => {
-              try {
-                await github.rest.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  name,
-                });
-              } catch (error) {
-                if (error.status !== 404) throw error;
-              }
-            };
-
-            await removeIfPresent('pending');
-            await removeIfPresent('validated');
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              labels: ['failed'],
-            });
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              body: `Automation configuration error: missing secret(s) ${missing.join(', ')}. Staff must fix repository secrets before this request can be validated.`,
-            });
-
-            core.setFailed(`Missing required secret(s): ${missing.join(', ')}`);
-
       - name: Validate and redact access request
         uses: actions/github-script@v9
         with:
@@ -233,51 +188,6 @@ jobs:
               issue_number: issue.number,
               labels: ['processing'],
             });
-
-      - name: Guard required secrets
-        uses: actions/github-script@v9
-        env:
-          AUTOMATION_TOKEN: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
-        with:
-          script: |
-            const issue = context.payload.issue;
-            const missing = [];
-            if (!process.env.AUTOMATION_TOKEN) missing.push('COURSE_AUTOMATION_TOKEN');
-
-            if (missing.length === 0) {
-              return;
-            }
-
-            const removeIfPresent = async (name) => {
-              try {
-                await github.rest.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  name,
-                });
-              } catch (error) {
-                if (error.status !== 404) throw error;
-              }
-            };
-
-            await removeIfPresent('pending');
-            await removeIfPresent('processing');
-            await removeIfPresent('validated');
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              labels: ['failed'],
-            });
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              body: `Automation configuration error: missing secret(s) ${missing.join(', ')}.`,
-            });
-
-            core.setFailed(`Missing required secret(s): ${missing.join(', ')}`);
 
       - name: Parse assignment request fields
         id: parse
