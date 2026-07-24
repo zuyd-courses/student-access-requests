@@ -59,12 +59,13 @@ jobs:
 
             core.setFailed(`Missing required secret(s): ${missing.join(', ')}`);
 
-      - name: Load access codes from student-registry
-        id: load_access_codes
+      - name: Validate and redact access request
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
           script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
             const response = await github.rest.repos.getContent({
               owner: 'zuyd-courses',
               repo: 'student-registry',
@@ -74,17 +75,7 @@ jobs:
             const payload = Array.isArray(response.data) ? response.data[0] : response.data;
             const content = Buffer.from(payload.content, payload.encoding).toString('utf8');
             const parsed = JSON.parse(content);
-            core.setOutput('access_codes_json', JSON.stringify(parsed.course_access_codes || {}));
-
-      - name: Validate and redact access request
-        uses: actions/github-script@v9
-        env:
-          ACCESS_CODES_JSON: ${{ steps.load_access_codes.outputs.access_codes_json }}
-        with:
-          script: |
-            const issue = context.payload.issue;
-            const body = issue.body || '';
-            const accessCodes = JSON.parse(process.env.ACCESS_CODES_JSON || '{}');
+            const accessCodes = parsed.course_access_codes || {};
             const normalizeCode = (value) =>
               String(value || '')
                 .normalize('NFKC')
