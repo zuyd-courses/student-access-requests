@@ -97,7 +97,6 @@ jobs:
             };
 
             if (!valid) {
-              await removeLabels(['pending', 'validated']);
               try {
                 await github.rest.issues.addLabels({
                   owner: context.repo.owner,
