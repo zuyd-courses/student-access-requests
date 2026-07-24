@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Guard required secrets
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           AUTOMATION_TOKEN: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
         with:
@@ -61,7 +61,7 @@ jobs:
 
       - name: Load access codes from student-registry
         id: load_access_codes
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
           script: |
@@ -77,7 +77,7 @@ jobs:
             core.setOutput('access_codes_json', JSON.stringify(parsed.course_access_codes || {}));
 
       - name: Validate and redact access request
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           ACCESS_CODES_JSON: ${{ steps.load_access_codes.outputs.access_codes_json }}
         with:
@@ -217,7 +217,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Mark assignment as processing
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const issue = context.payload.issue;
@@ -247,7 +247,7 @@ jobs:
             });
 
       - name: Guard required secrets
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           AUTOMATION_TOKEN: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
         with:
@@ -293,7 +293,7 @@ jobs:
 
       - name: Parse assignment request fields
         id: parse
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const issue = context.payload.issue;
@@ -363,7 +363,7 @@ jobs:
 
       - name: Check student identity first
         id: identity
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
           script: |
@@ -434,7 +434,7 @@ jobs:
             core.setFailed('Requester not found in student-registry.');
 
       - name: Validate org/template and create repository
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.COURSE_AUTOMATION_TOKEN }}
           script: |
