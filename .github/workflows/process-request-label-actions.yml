@@ -103,14 +103,14 @@ jobs:
               }
 
               const inviteNote = status === '201'
-                ? 'You have been invited to the private intake repository.'
-                : 'You already have access to the private intake repository.';
+                ? 'Your request was approved by your instructor. You have now been invited to the private intake repository.'
+                : 'Your request was approved by your instructor. You already have access to the private intake repository.';
 
               await github.rest.issues.createComment({
                 owner,
                 repo,
                 issue_number: issueNumber,
-                body: `Access request approved. ${inviteNote}\n\nNext step:\n1. Accept the invitation from GitHub.\n2. Open the intake form link below.\n3. Submit your profile details (first name, last name, classroom, zuyd email).\n\nIntake form: ${intakeLink}`,
+                body: `${inviteNote} Please submit your profile details there.\n\nNext steps:\n1. Go to ${intakeHome}\n2. Accept the invitation from GitHub (if you have not accepted it yet)\n3. Click the issue form link in the repository README\n4. Submit your profile details (first name, last name, classroom, zuyd email)\n\nDirect intake form link: ${intakeLink}`,
               });
 
               await removeIfPresent('validated');
