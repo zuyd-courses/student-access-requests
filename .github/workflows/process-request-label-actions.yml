@@ -39,26 +39,41 @@ jobs:
               return;
             }
 
-            const removeIfPresent = async (issueNumber, name) => {
-              try {
-                await github.rest.issues.removeLabel({ owner, repo, issue_number: issueNumber, name });
-              } catch (error) {
-                if (error.status !== 404) throw error;
-              }
-            };
-
             for (const issue of targets) {
               const issueNumber = issue.number;
               const username = issue.user.login;
+              const currentLabels = new Set(issue.labels.map((label) => label.name));
 
-              await removeIfPresent(issueNumber, 'pending');
-              await removeIfPresent(issueNumber, 'failed');
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                labels: ['approved'],
-              });
+              const removeIfPresent = async (name) => {
+                if (!currentLabels.has(name)) {
+                  return;
+                }
+
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: issueNumber, name });
+                currentLabels.delete(name);
+              };
+
+              const addLabels = async (labels) => {
+                const nextLabels = labels.filter((label) => !currentLabels.has(label));
+                if (nextLabels.length === 0) {
+                  return;
+                }
+
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  labels: nextLabels,
+                });
+
+                for (const label of nextLabels) {
+                  currentLabels.add(label);
+                }
+              };
+
+              await removeIfPresent('pending');
+              await removeIfPresent('failed');
+              await addLabels(['approved']);
 
               let status;
               try {
@@ -70,12 +85,7 @@ jobs:
                 });
                 status = String(response.status);
               } catch (error) {
-                await github.rest.issues.addLabels({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                  labels: ['failed'],
-                });
+                await addLabels(['failed']);
                 await github.rest.issues.createComment({
                   owner,
                   repo,
@@ -96,13 +106,18 @@ jobs:
                 body: `Access request approved. ${inviteNote}\n\nNext step:\n1. Accept the invitation from GitHub.\n2. Open the intake form link below.\n3. Submit your profile details (first name, last name, classroom, zuyd email).\n\nIntake form: ${intakeLink}`,
               });
 
-              await removeIfPresent(issueNumber, 'validated');
-              await removeIfPresent(issueNumber, 'approved');
-              await github.rest.issues.addLabels({
+              await removeIfPresent('validated');
+              await removeIfPresent('approved');
+              await addLabels(['processed']);
+
+              await github.rest.issues.update({
                 owner,
                 repo,
                 issue_number: issueNumber,
-                labels: ['processed'],
+                headers: {
+                  'X-GitHub-Api-Version': '2026-03-10',
+                },
+                state: 'closed',
               });
             }
 
